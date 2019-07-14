@@ -1,5 +1,9 @@
 # coding: utf-8
 
+# Power Net Analyzer for KiCad v0.1
+# Copyright (c) 2019 Cullen Jemison
+# 
+
 import pcbnew
 import wx
 import wx.dataview
@@ -8,10 +12,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 
-import PySpice.Logging.Logging as Logging
-logger = Logging.setup_logging()
-
-from lyngspice import NgSpice
+from lyngspice.lyngspice import NgSpice
 
 class PowerNetAnalyzerGui(wx.Frame):
     def __init__(self, parent, board):
@@ -35,11 +36,6 @@ class PowerNetAnalyzerGui(wx.Frame):
         # create a ComboBox for displaying net names
         netcb = wx.ComboBox(self.panel, choices=self.netnames)
         
-        # sourcecb_label = wx.StaticText(self.panel, label = "Select a source")
-
-        # self.sourcecb = wx.ComboBox(self.panel)
-        # self.sourcecb.Disable()
-
         # list of drain pads
         self.pad_config = wx.dataview.DataViewListCtrl(self.panel, size=wx.Size(350, 120))
         self.pad_config.AppendTextColumn("Pad Name")
@@ -153,7 +149,8 @@ class PowerNetAnalyzerGui(wx.Frame):
         height = bounding_box.GetHeight()
 
         self.analysis_grid_spacing = 100000 # 100000 nm (0.1 mm, 10 nodes per mm)
-        self.analysis_sheet_resistance = 0.0005 # 5milliohms/sq
+        self.analysis_sheet_resistance = 0.0005 # 5milliohms/sq (copper)
+        self.analysis_source_voltage = 3.3
 
         #print("    - Processing at most {} nodes".format((width*height)/(self.analysis_grid_spacing**2)))
 
@@ -232,8 +229,10 @@ class PowerNetAnalyzerGui(wx.Frame):
                         analysis_netlist.append("R{} {} {} {}".format(n, analysis_nodes[i][j], analysis_nodes[i][j-1], self.analysis_sheet_resistance))
                         n+=1
         
-        analysis_netlist.append("V1 {} 0 3.3".format(self.pad_config.GetTextValue(self.source_row,0)))
+        # add a voltage source to the selected source pad node
+        analysis_netlist.append("V1 {} 0 {}".format(self.pad_config.GetTextValue(self.source_row,0), self.analysis_source_voltage))
 
+        # add current nodes to each load pad node
         for i,pad in enumerate(self.analysis_padnames):
             if self.pad_config.GetTextValue(i,1) != "0":
                 analysis_netlist.append("I{} {} 0 {}".format(i, self.pad_config.GetTextValue(i,0), self.pad_config.GetTextValue(i,1)))
@@ -241,12 +240,9 @@ class PowerNetAnalyzerGui(wx.Frame):
         analysis_netlist.append(".op")
         analysis_netlist.append(".end")
 
-        #print(analysis_netlist)
-
         print("    - Running SPICE simulation")
         ng = NgSpice()
         data,_ = ng.run(analysis_netlist)
-        #print(data)
 
         node_voltages = []
         for i in range(len(analysis_nodes)):
@@ -255,25 +251,24 @@ class PowerNetAnalyzerGui(wx.Frame):
                 if analysis_nodes[i][j] != "":
                     line.append(data["op1"][analysis_nodes[i][j].lower()][0])
                 else:
-                    line.append(0)
+                    line.append(self.analysis_source_voltage)
             node_voltages.append(line)
 
         plt.matshow(np.transpose(node_voltages))
         plt.show()
 
 
-
-class SimplePlugin(pcbnew.ActionPlugin):
+class PowerNetAnalyzerPlugin(pcbnew.ActionPlugin):
     def defaults(self):
         self.name = "Power Net Analyzer"
         self.category = "Analysis"
         self.description = "Analyzes power nets"
-        self.show_toolbar_button = False # Optional, defaults to False
+        self.show_toolbar_button = True # Optional, defaults to False
         #self.icon_file_name = os.path.join(os.path.dirname(__file__), 'simple_plugin.png') # Optional, defaults to ""
 
     def Run(self):
         # The entry function of the plugin that is executed on user action
-        sg = PowerNetAnalyzerGui(None, pcbnew.GetBoard())
-        sg.Show(True)
+        gui = PowerNetAnalyzerGui(None, pcbnew.GetBoard())
+        gui.Show(True)
 
-SimplePlugin().register() # Instantiate and register to Pcbnew
+PowerNetAnalyzerPlugin().register() # Instantiate and register to Pcbnew
