@@ -39,9 +39,11 @@ class PowerNetAnalyzerGui(wx.Frame):
     def __init__(self, parent, board):
         self.board = board
 
+        # initialize frame and create panel
         wx.Frame.__init__(self, parent, title="Power Net Analyzer")
         self.panel = wx.Panel(self) 
 
+        # label for net selection comboBox
         netcb_label = wx.StaticText(self.panel, label = "Select net to analyze")
         
         # get net names from the board
@@ -57,6 +59,9 @@ class PowerNetAnalyzerGui(wx.Frame):
         # create a ComboBox for displaying net names
         netcb = wx.ComboBox(self.panel, choices=self.netnames)
         
+        # label for the pad config list
+        pad_cfg_label = wx.StaticText(self.panel, label = "Configure Pads")
+
         # list of drain pads
         self.pad_config = wx.dataview.DataViewListCtrl(self.panel, size=wx.Size(350, 120))
         self.pad_config.AppendTextColumn("Pad Name")
@@ -74,16 +79,16 @@ class PowerNetAnalyzerGui(wx.Frame):
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(netcb_label, proportion=0)
         self.box.Add(netcb, proportion=0)
-        #self.box.Add(sourcecb_label, proportion=0)
-        #self.box.Add(self.sourcecb, proportion=0)
+        self.box.Add(pad_cfg_label, proportion=0)
         self.box.Add(self.pad_config, proportion=0)
         self.box.Add(self.start_button,  proportion=0)
         
         self.panel.SetSizer(self.box)
-        self.Bind(wx.EVT_BUTTON, self.OnPress, id=self.start_button.GetId())
+
+        # Bind events to functions
+        self.Bind(wx.EVT_BUTTON, self.OnStartAnalysis, id=self.start_button.GetId())
         self.Bind(wx.EVT_COMBOBOX, self.OnSelectNet, id=netcb.GetId())
         self.Bind(wx.dataview.EVT_DATAVIEW_ITEM_VALUE_CHANGED, self.OnSelectSource, id=self.pad_config.GetId())
-        #self.Bind(wx.EVT_COMBOBOX, self.OnSelectSource, id=self.sourcecb.GetId())
 
     def OnSelectNet(self, event):
         # set the analysis net to the chosen net
@@ -133,7 +138,7 @@ class PowerNetAnalyzerGui(wx.Frame):
                 self.source_row = row
                 self.start_button.Enable()
 
-    def OnPress(self, event):
+    def OnStartAnalysis(self, event):
         if self.source_row != -1:
             self.run_analysis()
 
