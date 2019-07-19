@@ -152,7 +152,7 @@ class PowerNetAnalyzerGui(wx.Frame):
 
     # TODO: move this to its own class
     def run_analysis(self):
-        print("Running Analysis of net: {}".format(self.analysis_netname))
+        print("Running analysis of net: {}".format(self.analysis_netname))
 
         # Get board bounding box in (units: nanometers)
         bounding_box = self.board.GetBoardEdgesBoundingBox()
@@ -166,11 +166,22 @@ class PowerNetAnalyzerGui(wx.Frame):
         self.analysis_sheet_resistance = 0.0005 # 5milliohms/sq (copper)
         self.analysis_source_voltage = 3.3
 
-        #print("    - Processing at most {} nodes".format((width*height)/(self.analysis_grid_spacing**2)))
-
-        print("    - Isolating Tracks")
+        print("    - Isolating tracks")
         analysis_tracks = self.board.TracksInNet(self.analysis_net.GetNet())
-        #print(len(analysis_tracks))
+
+        print("    - Isolating fills")
+
+        # get the number of zones
+        num_areas = self.board.GetAreaCount()
+        
+        # zones in analysis net
+        analysis_zones = []
+
+        # loop through the zones
+        for i in range(num_areas):
+            zone = self.board.GetArea(i)
+            if zone.GetNet().GetNetname() == self.analysis_netname:
+                analysis_zones.append(zone)
 
         print("    - Creating nodes")
 
@@ -204,7 +215,13 @@ class PowerNetAnalyzerGui(wx.Frame):
                             nodes_to_process += 1
                             break
 
-                # TODO: check if node belongs to each fill
+                # check if node belongs to each fill
+                if not node_on_net:
+                    for zone in analysis_zones:
+                        if zone.HitTestFilledArea(test_point):
+                            node_on_net = True
+                            nodes_to_process += 1
+                            break
 
                 # add the node name to the list if it is in the net
                 if node_on_net:
