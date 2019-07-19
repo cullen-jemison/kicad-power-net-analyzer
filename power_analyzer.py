@@ -127,13 +127,21 @@ class PowerNetAnalyzerGui(wx.Frame):
         # if event occured in the source selection column
         if event.GetColumn() == 2:
             row = self.pad_config.ItemToRow(event.GetItem())
+
+            # if selected row is the same as the currently chosen row, then the user has unchecked the source.
+            # Reset source_row and disable starting the simulation.
             if self.source_row == row:
                 self.source_row = -1
                 self.start_button.Disable()
+
+            # if source has already been selected, then uncheck the old one and set the new one. Also, enable
+            # starting the simulation
             elif self.source_row != -1:
                 self.pad_config.SetToggleValue(False, self.source_row, 2)
                 self.source_row = row
                 self.start_button.Enable()
+
+            # if source has not already been selected, set the source and enable starting the simulation.
             else:
                 self.source_row = row
                 self.start_button.Enable()
@@ -153,6 +161,7 @@ class PowerNetAnalyzerGui(wx.Frame):
         width = bounding_box.GetWidth()
         height = bounding_box.GetHeight()
 
+        # TODO: these should be configurable via the UI
         self.analysis_grid_spacing = 100000 # 100000 nm (0.1 mm, 10 nodes per mm)
         self.analysis_sheet_resistance = 0.0005 # 5milliohms/sq (copper)
         self.analysis_source_voltage = 3.3
@@ -212,7 +221,7 @@ class PowerNetAnalyzerGui(wx.Frame):
 
         print("    - Creating SPICE simulation")
 
-        analysis_netlist = ['analysis']
+        analysis_netlist = ['analysis'] # first line is name of netlist, in this case 'analysis'
         n=1
         for i in range(1, len(analysis_nodes)-1):
             for j in range(1, len(analysis_nodes[0])-1):
